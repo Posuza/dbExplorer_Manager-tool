@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Database Explorer{% endblock %}</title>
+    
+    <!-- External CSS Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Minimal custom styling -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        /* Only these few custom styles are really needed */
+        /* Remove connection-dot styles from here - they're defined in navbar.html */
+        
+        /* Legacy status-icon support (if still used elsewhere) */
+        .status-icon {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .status-icon.disconnected { background-color: #dc3545; }
+        .status-icon.info-exists { background-color: #ffc107; }
+        .status-icon.connected { background-color: #198754; }
+        
+        /* This was causing issues */
+        .connection-dot {
+            display: inline-block;  /* Conflicts with absolute positioning */
+            margin-left: 8px;       /* Not needed with absolute positioning */
+        }
+    </style>
+    
+    {% block component_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar -->
+    {% include "components/navbar.html" %}
+
+    <!-- Content area -->
+    <div class="container-fluid p-3">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Modals -->
+    {% block modals %}{% endblock %}
+    
+    <!-- Toast container -->
+    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3"></div>
+
+    <!-- External JS Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Global utility functions -->
+    <script>
+        // Define global variables
+        window.sessionId = localStorage.getItem('dbExplorerSessionId') || null;
+        window.currentTable = null;
+        window.currentPage = 1;
+        window.pageSize = 50;
+        window.totalPages = 1;
+        window.selectedColumns = [];
+        window.allColumns = [];
+        
+        // UI Helper Functions
+        window.showToast = function(type, title, message) {
+            const toastContainer = document.getElementById('toastContainer');
+            if (!toastContainer) return;
+            
+            const toastId = 'toast-' + Date.now();
+            
+            let bgClass, textClass, customStyle = '';
+            
+            if (type === 'disconnect') {
+                // Pale pink for disconnect messages
+                bgClass = '';
+                textClass = 'text-dark';
+                customStyle = 'style="background-color: #f8d7da; border: 1px solid #f5c6cb;"';
+            } else {
+                bgClass = type === 'error' ? 'bg-danger' : 
+                         type === 'success' ? 'bg-success' : 
+                         type === 'info' ? 'bg-info' : 'bg-primary';
+                textClass = 'text-white';
+            }
+            
+            const icon = type === 'error' ? 'exclamation-triangle' :
+                        type === 'success' ? 'check-circle' :
+                        type === 'disconnect' ? 'power-off' :
+                        type === 'info' ? 'info-circle' : 'bell';
+            
+            const toastHtml = `
+                <div id="${toastId}" class="toast ${bgClass} ${textClass}" ${customStyle} role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <i class="fas fa-${icon} me-2 ${type === 'disconnect' ? 'text-danger' : ''}"></i>
+                        <strong class="me-auto">${title}</strong>
+                        <small>${new Date().toLocaleTimeString()}</small>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+            toast.show();
+            
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        };
+
+        window.showLoading = function(id) {
+            const element = document.getElementById(id);
+            if (element) element.style.display = 'inline-block';
+        };
+
+        window.hideLoading = function(id) {
+            const element = document.getElementById(id);
+            if (element) element.style.display = 'none';
+        };
+
+        // Helper function for API fetch
+        window.fetchAPI = async function(url, options = {}) {
+            // Get session ID from localStorage
+            const sessionId = localStorage.getItem('dbExplorerSessionId') || window.sessionId;
+            
+            // Set default headers
+            const defaultHeaders = {
+                'Content-Type': 'application/json',
+                'X-Session-ID': sessionId || ''  // Include session ID in headers
+            };
+            
+            // Merge with provided headers
+            const headers = { ...defaultHeaders, ...(options.headers || {}) };
+            
+            // Also set cookie if session ID exists
+            if (sessionId) {
+                document.cookie = `session_id=${sessionId}; path=/`;
+            }
+            
+            const response = await fetch(url, {
+                ...options,
+                headers,
+                credentials: 'include'  // Include cookies in requests
+            });
+    
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                throw new Error(errorData.detail || `HTTP ${response.status}`);
+            }
+            
+            return response.json();
+        };
+        
+        // Theme toggle function
+        window.toggleTheme = function() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            html.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            const themeIcon = document.getElementById('themeIcon');
+            if (themeIcon) {
+                themeIcon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        };
+        
+        // Add this event listener at the end of your main script
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set theme
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-bs-theme', savedTheme);
+                const themeIcon = document.getElementById('themeIcon');
+                if (themeIcon) {
+                    themeIcon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                }
+            }
+            
+            // Initialize the disconnect button visibility
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            if (disconnectBtn) {
+                disconnectBtn.style.display = window.sessionId ? 'block' : 'none';
+            }
+            
+            // Call updateConnectionStatus on page load
+            if (window.sessionId) {
+                const dbType = localStorage.getItem('dbExplorerDbType');
+                updateConnectionStatus(dbType ? 'connected' : 'info-exists', dbType);
+            } else {
+                updateConnectionStatus('disconnected');
+            }
+            
+            // Check for session ID and set initial state
+            window.sessionId = localStorage.getItem('dbExplorerSessionId');
+    
+            if (window.sessionId) {
+                const dbType = localStorage.getItem('dbExplorerDbType');
+                document.body.classList.add('connected');
+                document.documentElement.setAttribute('data-connection-state', 'connected');
+                updateConnectionStatus(dbType ? 'connected' : 'info-exists', dbType);
+            } else {
+                document.body.classList.remove('connected');
+                document.documentElement.setAttribute('data-connection-state', 'disconnected');
+                updateConnectionStatus('disconnected');
+            }
+            
+            // Explicitly update all disconnect buttons
+            window.updateDisconnectButtons();
+        });
+        
+        window.disconnectFromDatabase = async function() {
+            console.log("Disconnect called, session ID:", window.sessionId);
+            
+            if (!window.sessionId) {
+                console.log("No session ID found, cannot disconnect");
+                return;
+            }
+            
+            try {
+                console.log("Calling disconnect API endpoint...");
+                await fetchAPI(`/api/disconnect/${window.sessionId}`, {
+                    method: 'POST'
+                });
+                
+                // Clear all stored connection info
+                window.sessionId = null;
+                localStorage.removeItem('dbExplorerSessionId');
+                localStorage.removeItem('dbExplorerDbType');
+                localStorage.removeItem('dbExplorerServer');
+                localStorage.removeItem('dbExplorerDatabase');
+                localStorage.removeItem('dbExplorerUser');
+                localStorage.removeItem('dbExplorerPort');
+                
+                // Update UI to disconnected state
+                updateConnectionStatus('disconnected');
+                
+                // Update connection UI using the global function
+                if (typeof window.updateConnectionUI === 'function') {
+                    window.updateConnectionUI();
+                }
+                
+                // Clear tables list and hide table data
+                const tablesList = document.getElementById('tablesList');
+                const tableData = document.getElementById('tableData');
+                if (tablesList) {
+                    tablesList.innerHTML = `
+                        <div class="d-flex justify-content-center align-items-center text-muted h-100 py-5">
+                            <div class="text-center">
+                                <i class="fas fa-database fa-3x mb-3 opacity-50"></i>
+                                <p>Connect to a database to view tables</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                if (tableData) {
+                    tableData.style.display = 'none';
+                }
+                
+                // Show pale pink disconnect message
+                showToast('disconnect', 'Disconnected', 'Successfully disconnected from database');
+                
+            } catch (error) {
+                console.error("Disconnect error:", error);
+                showToast('error', 'Disconnect Failed', error.message);
+            }
+        };
+        
+        // Remove or comment out the updateConnectionStatus function here
+        // Keep only the other utility functions
+        
+        // Keep this function but don't redefine updateConnectionStatus
+        window.updateDisconnectButtons = function() {
+            // Find all disconnect buttons
+            document.querySelectorAll('#disconnectButton, .db-disconnect-btn').forEach(btn => {
+                if (window.sessionId) {
+                    btn.style.cssText = 'display: block !important';
+                } else {
+                    btn.style.cssText = 'display: none !important';
+                }
+            });
+        };
+        
+
+    </script>
+</body>
+</html>

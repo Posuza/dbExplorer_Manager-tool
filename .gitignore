@@ -1,0 +1,96 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+myEnv/
+env/
+ENV/
+.env.bak/
+.venv/
+
+# Environment files (containing sensitive data)
+.env1
+.env
+*.env
+
+# Development database
+*.db
+*.sqlite3
+*.mdf
+*.ldf
+
+# Log files
+*.log
+logs/
+tunnel.log
+npm-debug.log*
+
+# Tunnel files
+tunnel.pid
+fastapi.pid
+*.pid
+
+# Temporary files
+*.tmp
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Redis data
+*.rdb
+dump.rdb
+
+# Cache data
+.cache/
+.pytest_cache/
+.npm/
+
+# Docker volumes
+data/
+redis-data/
+docker-volumes/
+
+# IDE files
+.idea/
+.vscode/
+*.code-workspace
+*.sublime-*
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+__pypackages__/
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage/
+.hypothesis/
+
+# Documentation
+docs/_build/
+site/
+
+# Local tunnel settings
+localtunnel.json
+lt-credentials.json
+
+# Node.js dependencies (if using localtunnel)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Backup files
+*.bak
+*~
+*.orig

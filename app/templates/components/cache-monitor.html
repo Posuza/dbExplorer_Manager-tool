@@ -1,0 +1,338 @@
+<!-- Cache Monitor Modal -->
+<div class="modal fade" id="cacheMonitorModal" tabindex="-1" aria-labelledby="cacheMonitorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="cacheMonitorModalLabel">
+          <i class="fas fa-tachometer-alt me-2"></i>Cache Monitor
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Session Info -->
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <div class="card bg-primary text-white">
+              <div class="card-body">
+                <div class="d-flex justify-content-between">
+                  <div>
+                    <h6 class="card-title">Current Session</h6>
+                    <h4 id="sessionIdDisplay">No Session</h4>
+                  </div>
+                  <div class="align-self-center">
+                    <i class="fas fa-user-circle fa-2x"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card bg-success text-white">
+              <div class="card-body">
+                <div class="d-flex justify-content-between">
+                  <div>
+                    <h6 class="card-title">Total Cache Entries</h6>
+                    <h4 id="totalCacheEntries">0</h4>
+                  </div>
+                  <div class="align-self-center">
+                    <i class="fas fa-database fa-2x"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cache Breakdown -->
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Cache Breakdown by Pattern</h6>
+            <div>
+              <button class="btn btn-sm btn-outline-primary" onclick="refreshCacheStatus()">
+                <i class="fas fa-sync-alt"></i> Refresh
+              </button>
+              <button class="btn btn-sm btn-outline-warning" onclick="clearAllSessionCache()">
+                <i class="fas fa-trash"></i> Clear All
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="cacheBreakdownContainer">
+              <div class="text-center text-muted">
+                <i class="fas fa-spinner fa-spin"></i> Loading cache data...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Auto Refresh Toggle -->
+        <div class="card mt-3">
+          <div class="card-body">
+            <div class="row align-items-center">
+              <div class="col-md-6">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="autoRefreshToggle">
+                  <label class="form-check-label" for="autoRefreshToggle">
+                    Auto Refresh (5 seconds)
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-6 text-end">
+                <small class="text-muted">
+                  Last updated: <span id="lastUpdated">Never</span>
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cache Performance Metrics -->
+        <div class="row mt-3">
+          <div class="col-md-4">
+            <div class="card border-info">
+              <div class="card-body text-center">
+                <h6 class="card-title text-info">Table Caches</h6>
+                <h4 id="tableCacheCount">0</h4>
+                <small class="text-muted">Records, Columns, Counts</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border-warning">
+              <div class="card-body text-center">
+                <h6 class="card-title text-warning">Connection Cache</h6>
+                <h4 id="connectionCacheCount">0</h4>
+                <small class="text-muted">Session Info</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border-secondary">
+              <div class="card-body text-center">
+                <h6 class="card-title text-secondary">Other Caches</h6>
+                <h4 id="otherCacheCount">0</h4>
+                <small class="text-muted">Miscellaneous</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let cacheMonitorInterval = null;
+
+// Main function to load cache status
+async function loadCacheStatus() {
+    if (!window.sessionId) {
+        updateCacheUI({
+            session_id: null,
+            total_cache_entries: 0,
+            cache_breakdown: {}
+        });
+        return;
+    }
+
+    try {
+        const response = await fetchAPI(`/api/cache/status/${window.sessionId}`);
+        updateCacheUI(response);
+    } catch (error) {
+        console.error('Error loading cache status:', error);
+        // Show user-friendly message
+        const container = document.getElementById('cacheBreakdownContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p class="mt-2">Error loading cache data: ${error.message}</p>
+                </div>
+            `;
+        }
+    }
+}
+
+// Update the UI with cache data
+function updateCacheUI(cacheData) {
+    // Update session info
+    const sessionDisplay = document.getElementById('sessionIdDisplay');
+    if (sessionDisplay) {
+        sessionDisplay.textContent = cacheData.session_id ? 
+            cacheData.session_id.substring(0, 8) + '...' : 'No Session';
+    }
+
+    // Update total entries
+    const totalEntries = document.getElementById('totalCacheEntries');
+    if (totalEntries) {
+        totalEntries.textContent = cacheData.total_cache_entries || 0;
+    }
+
+    // Update breakdown
+    updateCacheBreakdown(cacheData.cache_breakdown || {});
+
+    // Update category counts
+    updateCategoryCounts(cacheData.cache_breakdown || {});
+
+    // Update last updated time
+    const lastUpdated = document.getElementById('lastUpdated');
+    if (lastUpdated) {
+        lastUpdated.textContent = new Date().toLocaleTimeString();
+    }
+}
+
+// Update cache breakdown display - FIXED
+function updateCacheBreakdown(breakdown) {
+    const container = document.getElementById('cacheBreakdownContainer');
+    if (!container) return;
+
+    if (Object.keys(breakdown).length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-inbox"></i>
+                <p class="mt-2">No cache entries found</p>
+            </div>
+        `;
+        return;
+    }
+
+    const totalEntries = Object.values(breakdown).reduce((a, b) => a + b, 0);
+    
+    const breakdownHtml = Object.entries(breakdown).map(([category, count]) => {
+        const percentage = totalEntries > 0 ? Math.round((count / totalEntries) * 100) : 0;
+        
+        return `
+            <div class="row mb-2 align-items-center">
+                <div class="col-md-6">
+                    <code class="text-primary">${category}</code>
+                </div>
+                <div class="col-md-3">
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: ${percentage}%" 
+                             aria-valuenow="${percentage}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            ${percentage}%
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="badge bg-primary">${count} entries</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = breakdownHtml;
+}
+
+// Update category counts with better pattern matching
+function updateCategoryCounts(breakdown) {
+    let tableCacheCount = 0;
+    let connectionCacheCount = 0;
+    let otherCacheCount = 0;
+
+    Object.entries(breakdown).forEach(([category, count]) => {
+        // Now we're working with category names instead of patterns
+        if (category.includes('Table')) {
+            tableCacheCount += count;
+        } else if (category.includes('Connection')) {
+            connectionCacheCount += count;
+        } else {
+            otherCacheCount += count;
+        }
+    });
+
+    const tableCacheEl = document.getElementById('tableCacheCount');
+    const connectionCacheEl = document.getElementById('connectionCacheCount');
+    const otherCacheEl = document.getElementById('otherCacheCount');
+
+    if (tableCacheEl) tableCacheEl.textContent = tableCacheCount;
+    if (connectionCacheEl) connectionCacheEl.textContent = connectionCacheCount;
+    if (otherCacheEl) otherCacheEl.textContent = otherCacheCount;
+}
+
+// Refresh cache status manually
+window.refreshCacheStatus = function() {
+    loadCacheStatus();
+    showToast('info', 'Cache Status', 'Cache status refreshed');
+};
+
+// Clear all session cache - FIXED
+window.clearAllSessionCache = async function() {
+    if (!window.sessionId) {
+        showToast('warning', 'No Session', 'No active session to clear cache for');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to clear all cache entries for this session?')) {
+        return;
+    }
+
+    try {
+        const response = await fetchAPI(`/api/cache/clear-all/${window.sessionId}`, {
+            method: 'DELETE'  // Changed from POST to DELETE
+        });
+
+        showToast('success', 'Cache Cleared', 
+            `Cleared ${response.cache_entries_cleared} cache entries`);
+        
+        // Refresh the cache status display
+        loadCacheStatus();
+        
+    } catch (error) {
+        showToast('error', 'Error', `Error clearing cache: ${error.message}`);
+    }
+};
+
+// Setup auto-refresh
+function setupAutoRefresh() {
+    const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+    
+    if (autoRefreshToggle) {
+        autoRefreshToggle.addEventListener('change', function() {
+            if (this.checked) {
+                // Start auto-refresh every 5 seconds
+                cacheMonitorInterval = setInterval(loadCacheStatus, 5000);
+                showToast('info', 'Auto Refresh', 'Auto refresh enabled');
+            } else {
+                // Stop auto-refresh
+                if (cacheMonitorInterval) {
+                    clearInterval(cacheMonitorInterval);
+                    cacheMonitorInterval = null;
+                }
+                showToast('info', 'Auto Refresh', 'Auto refresh disabled');
+            }
+        });
+    }
+}
+
+// Initialize cache monitor when modal opens
+document.addEventListener('DOMContentLoaded', function() {
+    const cacheModal = document.getElementById('cacheMonitorModal');
+    if (cacheModal) {
+        cacheModal.addEventListener('show.bs.modal', function() {
+            loadCacheStatus();
+            setupAutoRefresh();
+        });
+
+        cacheModal.addEventListener('hide.bs.modal', function() {
+            // Stop auto-refresh when modal closes
+            if (cacheMonitorInterval) {
+                clearInterval(cacheMonitorInterval);
+                cacheMonitorInterval = null;
+            }
+            
+            // Uncheck auto-refresh toggle
+            const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+            if (autoRefreshToggle) {
+                autoRefreshToggle.checked = false;
+            }
+        });
+    }
+});
+</script>

@@ -1,0 +1,621 @@
+<style>
+    /* Minimal styling for database options */
+    .db-option {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        text-align: center;
+        height: 100%;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .db-option:hover {
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+    
+    .db-option.selected {
+        background-color: rgba(13, 110, 253, 0.1);
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    /* Show disconnect button only when connected */
+    #disconnectButton {
+        /* Don't hide by default, let JavaScript control it */
+        display: block; 
+    }
+
+    body.connected #disconnectButton,
+    html[data-connection-state="connected"] #disconnectButton {
+        display: block !important; /* Override when connected */
+    }
+    
+    /* Horizontal scrolling for database types */
+    .db-types-container {
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scroll-behavior: smooth;
+    }
+    
+    .db-types-container::-webkit-scrollbar {
+        height: 6px;
+    }
+    
+    .db-types-container::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 3px;
+    }
+    
+    .db-types-container .db-type-option {
+        flex: 0 0 auto;
+        width: 110px;
+        margin-right: 8px;
+    }
+    
+    /* Keep text color consistent when button is selected */
+    .btn-check:checked + .btn {
+        border-color: #0d6efd !important;
+        background-color: rgba(13, 110, 253, 0.1);
+        color: inherit !important; /* Keeps the original text color */
+    }
+    
+    /* Consistent text color for small labels inside buttons */
+    .btn-outline-secondary .small {
+        color: inherit !important;
+    }
+    
+    /* Ensure icon colors remain the same when selected */
+    .btn-check:checked + .btn i,
+    .btn-check:checked + .btn img {
+        color: inherit !important;
+    }
+</style>
+
+<div class="modal fade" id="connectionModal" tabindex="-1" aria-labelledby="connectionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="connectionModalLabel">Database Connection</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      
+      <!-- Connection Form Section -->
+      <div id="connectionForm">
+        <div class="modal-body">
+          <form>
+            <!-- Database Type Selector with Horizontal Scrolling -->
+            <div class="mb-3">
+              <label class="form-label">Database Type</label>
+              <div class="db-types-container">
+                <div class="db-type-option">
+                  <input type="radio" class="btn-check" name="dbType" id="dbTypeMssql" value="mssql" checked>
+                  <label class="btn btn-outline-secondary w-100 text-center p-2" for="dbTypeMssql">
+                    <img src="https://img.icons8.com/color/36/microsoft-sql-server.png" alt="SQL Server" width="36" height="36">
+                    <div class="small mt-1">SQL Server</div>
+                  </label>
+                </div>
+                <div class="db-type-option">
+                  <input type="radio" class="btn-check" name="dbType" id="dbTypeMysql" value="mysql">
+                  <label class="btn btn-outline-secondary w-100 text-center p-2" for="dbTypeMysql">
+                    <img src="https://img.icons8.com/color/36/mysql-logo.png" alt="MySQL" width="36" height="36">
+                    <div class="small mt-1">MySQL</div>
+                  </label>
+                </div>
+                <div class="db-type-option">
+                  <input type="radio" class="btn-check" name="dbType" id="dbTypePostgresql" value="postgresql">
+                  <label class="btn btn-outline-secondary w-100 text-center p-2" for="dbTypePostgresql">
+                    <img src="https://img.icons8.com/color/36/postgreesql.png" alt="PostgreSQL" width="36" height="36">
+                    <div class="small mt-1">PostgreSQL</div>
+                  </label>
+                </div>
+                <div class="db-type-option">
+                  <input type="radio" class="btn-check" name="dbType" id="dbTypeSqlite" value="sqlite">
+                  <label class="btn btn-outline-secondary w-100 text-center p-2" for="dbTypeSqlite">
+                    <i class="fas fa-database text-success" style="font-size: 36px;"></i>
+                    <div class="small mt-1">SQLite</div>
+                  </label>
+                </div>
+                <div class="db-type-option">
+                  <input type="radio" class="btn-check" name="dbType" id="dbTypeOracle" value="oracle">
+                  <label class="btn btn-outline-secondary w-100 text-center p-2" for="dbTypeOracle">
+                    <img src="https://img.icons8.com/color/36/oracle-logo.png" alt="Oracle" width="36" height="36">
+                    <div class="small mt-1">Oracle</div>
+                  </label>
+                </div>
+                <div class="db-type-option">
+                  <input type="radio" class="btn-check" name="dbType" id="dbTypeMongodb" value="mongodb">
+                  <label class="btn btn-outline-secondary w-100 text-center p-2" for="dbTypeMongodb">
+                    <img src="https://img.icons8.com/color/36/mongodb.png" alt="MongoDB" width="36" height="36">
+                    <div class="small mt-1">MongoDB</div>
+                  </label>
+                </div>
+                <div class="db-type-option">
+                  <input type="radio" class="btn-check" name="dbType" id="dbTypeOther" value="other">
+                  <label class="btn btn-outline-secondary w-100 text-center p-2" for="dbTypeOther">
+                    <img src="https://img.icons8.com/color/36/database.png" alt="Other DB" width="36" height="36">
+                    <div class="small mt-1">Other</div>
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="serverInput" class="form-label">Server</label>
+                  <input type="text" class="form-control" id="serverInput" placeholder="localhost" required>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="portInput" class="form-label">Port</label>
+                  <input type="number" class="form-control" id="portInput" placeholder="1433">
+                </div>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label for="databaseInput" class="form-label">Database</label>
+              <input type="text" class="form-control" id="databaseInput" placeholder="Database" required>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="userInput" class="form-label">User</label>
+                  <input type="text" class="form-control" id="userInput" placeholder="User" required>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="passwordInput" class="form-label">Password</label>
+                  <input type="password" class="form-control" id="passwordInput" placeholder="">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Connect/Disconnect Buttons -->
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-primary flex-grow-1" id="connectButton">
+                <i class="fas fa-plug"></i> Connect
+              </button>
+              <!-- Use Bootstrap classes instead of style -->
+              <button type="button" class="btn btn-danger db-disconnect-btn" id="disconnectButton">
+                <i class="fas fa-power-off"></i> Disconnect
+              </button>
+            </div>
+
+            <!-- Connection Status Alert (shown when connected) -->
+            <div id="connectionStatusAlert" class="alert alert-success mt-3" style="display: none;">
+              <i class="fas fa-check-circle me-2"></i>
+              <span id="connectionStatusText">Connected to database</span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    // Move this function outside of the DOMContentLoaded event handler
+
+    // Global function to update connection UI state
+    window.updateConnectionUI = function() {
+        const connectBtn = document.getElementById('connectButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        const connectionStatusAlert = document.getElementById('connectionStatusAlert');
+        const connectionStatusText = document.getElementById('connectionStatusText');
+        
+        // Get all form inputs
+        const formInputs = [
+            document.getElementById('serverInput'),
+            document.getElementById('databaseInput'),
+            document.getElementById('userInput'),
+            document.getElementById('passwordInput'),
+            document.getElementById('portInput')
+        ];
+        
+        // Get database type radios
+        const dbTypeRadios = document.querySelectorAll('input[name="dbType"]');
+        
+        if (window.sessionId) {
+            // Connected state
+            if (disconnectButton) {
+                disconnectButton.style.cssText = 'display: block !important;';
+                disconnectButton.classList.remove('d-none');
+                disconnectButton.classList.add('d-block');
+            }
+            
+            if (connectBtn) {
+                connectBtn.disabled = true;
+                connectBtn.classList.remove('btn-primary');
+                connectBtn.classList.add('btn-secondary');
+                connectBtn.innerHTML = '<i class="fas fa-check"></i> Connected';
+            }
+            
+            if (connectionStatusAlert) {
+                connectionStatusAlert.style.display = 'block';
+            }
+            
+            // Get stored values to display in the form
+            const dbType = localStorage.getItem('dbExplorerDbType') || '';
+            const server = localStorage.getItem('dbExplorerServer') || '';
+            const database = localStorage.getItem('dbExplorerDatabase') || '';
+            const user = localStorage.getItem('dbExplorerUser') || '';
+            const port = localStorage.getItem('dbExplorerPort') || '';
+            
+            // Set connection status text
+            if (connectionStatusText) {
+                connectionStatusText.textContent = `Connected to ${database} on ${server} (${dbType.toUpperCase()})`;
+            }
+            
+            // Make form fields read-only
+            formInputs.forEach(input => {
+                if (input) {
+                    input.readOnly = true;
+                    input.classList.add('bg-light');
+                }
+            });
+            
+            // Disable database type selection
+            dbTypeRadios.forEach(radio => {
+                radio.disabled = true;
+            });
+            
+        } else {
+            // Disconnected state
+            if (disconnectButton) {
+                disconnectButton.style.cssText = 'display: none !important;';
+                disconnectButton.classList.add('d-none');
+                disconnectButton.classList.remove('d-block');
+            }
+            
+            if (connectBtn) {
+                connectBtn.disabled = false;
+                connectBtn.classList.remove('btn-secondary');
+                connectBtn.classList.add('btn-primary');
+                connectBtn.innerHTML = '<i class="fas fa-plug"></i> Connect';
+            }
+            
+            // Hide and reset connection status alert
+            if (connectionStatusAlert) {
+                connectionStatusAlert.style.display = 'none';
+            }
+            if (connectionStatusText) {
+                connectionStatusText.textContent = 'Connected to database'; // Reset to default
+            }
+            
+            // Make form fields editable
+            formInputs.forEach(input => {
+                if (input) {
+                    input.readOnly = false;
+                    input.classList.remove('bg-light');
+                }
+            });
+            
+            // Enable database type selection
+            dbTypeRadios.forEach(radio => {
+                radio.disabled = false;
+            });
+        }
+    };
+
+    // DOMContentLoaded event handler
+    document.addEventListener('DOMContentLoaded', function() {
+        // Debug check for disconnect button
+        console.log("Session ID:", window.sessionId);
+        const disconnectButn = document.getElementById('disconnectButton');
+        if (disconnectButn) {
+            console.log("Disconnect button found:", disconnectButn);
+        }
+        
+        // Port defaults for different DB types
+        const portDefaults = {
+            'mssql': 1433,
+            'mysql': 3306,
+            'postgresql': 5432,
+            'oracle': 1521,
+            'sqlite': 0,
+            'mongodb': 27017,
+            'other': 0
+        };
+        
+        // Function to update port and visual selection
+        function updateDbTypeSelection(dbType) {
+            // Update port
+            const portInput = document.getElementById('portInput');
+            if (portInput) {
+                portInput.value = portDefaults[dbType] || '';
+                console.log(`Port updated to: ${portInput.value} for ${dbType}`);
+            }
+            
+            // Update visual selection
+            document.querySelectorAll('.db-type-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            const selectedRadio = document.querySelector(`input[name="dbType"][value="${dbType}"]`);
+            if (selectedRadio) {
+                const parentOption = selectedRadio.closest('.db-type-option');
+                if (parentOption) {
+                    parentOption.classList.add('selected');
+                }
+            }
+        }
+        
+        // Add event listeners to all radio buttons
+        document.querySelectorAll('input[name="dbType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    updateDbTypeSelection(this.value);
+                }
+            });
+        });
+        
+        // Initialize with default selection
+        setTimeout(() => {
+            let selectedRadio = document.querySelector('input[name="dbType"]:checked');
+            
+            if (!selectedRadio) {
+                // Default to MySQL
+                const mysqlRadio = document.getElementById('dbTypeMysql');
+                if (mysqlRadio) {
+                    mysqlRadio.checked = true;
+                    selectedRadio = mysqlRadio;
+                }
+            }
+            
+            if (selectedRadio) {
+                updateDbTypeSelection(selectedRadio.value);
+            }
+        }, 100);
+        
+        // Also handle direct clicks on the radio buttons
+        document.querySelectorAll('input[name="dbType"]').forEach(radio => {
+            radio.addEventListener('click', function() {
+                const dbType = this.value;
+                const portInput = document.getElementById('portInput');
+                
+                // Define port values directly
+                const portValue = {
+                    'mssql': '1433',
+                    'mysql': '3306',
+                    'postgresql': '5432',
+                    'oracle': '1521',
+                    'sqlite': '0',
+                    'mongodb': '27017'
+                }[dbType] || '';
+                
+                if (portInput) {
+                    // Direct DOM manipulation
+                    portInput.value = portValue;
+                    console.log(`Direct click: Set port to ${portValue} for ${dbType}`);
+                }
+            });
+        });
+        
+        // Also handle clicks on the labels (which visually look like buttons)
+        document.querySelectorAll('.btn-outline-secondary[for^="dbType"]').forEach(label => {
+            label.addEventListener('click', function() {
+                // Extract the db type from the label's for attribute
+                const radioId = this.getAttribute('for');
+                const radio = document.getElementById(radioId);
+                
+                if (radio) {
+                    const dbType = radio.value;
+                    const portInput = document.getElementById('portInput');
+                    
+                    // Set port value directly based on the database type
+                    if (portInput) {
+                        switch(dbType) {
+                            case 'mssql': portInput.value = '1433'; break;
+                            case 'mysql': portInput.value = '3306'; break;
+                            case 'postgresql': portInput.value = '5432'; break;
+                            case 'oracle': portInput.value = '1521'; break;
+                            case 'sqlite': portInput.value = '0'; break;
+                            case 'mongodb': portInput.value = '27017'; break;
+                            default: portInput.value = '';
+                        }
+                        console.log(`Label click: Set port to ${portInput.value} for ${dbType}`);
+                    }
+                }
+            });
+        });
+        
+        // Run this code directly, not in a nested event listener
+        // Find currently selected database type
+        const selectedDbType = document.querySelector('input[name="dbType"]:checked');
+        if (selectedDbType) {
+            console.log(`Initially selected DB type: ${selectedDbType.value}`);
+            // Manually trigger the change event to set the port
+            selectedDbType.dispatchEvent(new Event('change'));
+        } else {
+            // If no DB type is selected, default to MySQL after a short delay
+            setTimeout(() => {
+                const mysqlRadio = document.getElementById('dbTypeMysql');
+                if (mysqlRadio) {
+                    console.log("Setting default to MySQL");
+                    mysqlRadio.checked = true;
+                    mysqlRadio.dispatchEvent(new Event('change'));
+                }
+            }, 50);
+        }
+        
+        // Initialize buttons using the global function
+        window.updateConnectionUI();
+        
+        // Add event listeners
+        const connectButton = document.getElementById('connectButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        
+        if (connectButton) {
+            connectButton.addEventListener('click', connectToDatabase);
+        }
+        
+        if (disconnectButton) {
+            disconnectButton.addEventListener('click', function() {
+                console.log("Disconnect button clicked");
+                window.disconnectFromDatabase();
+            });
+        }
+        
+        // Update when modal opens
+        const connectionModal = document.getElementById('connectionModal');
+        if (connectionModal) {
+            connectionModal.addEventListener('show.bs.modal', function() {
+                window.updateConnectionUI();
+                
+                // Set previously used DB type if available
+                const storedDbType = localStorage.getItem('dbExplorerDbType');
+                if (storedDbType) {
+                    const radioBtn = document.getElementById(`dbType${storedDbType.charAt(0).toUpperCase() + storedDbType.slice(1)}`);
+                    if (radioBtn) {
+                        radioBtn.checked = true;
+                        radioBtn.dispatchEvent(new Event('change'));
+                    }
+                }
+                
+                // Fill in stored values if connected
+                if (window.sessionId) {
+                    const server = localStorage.getItem('dbExplorerServer');
+                    const database = localStorage.getItem('dbExplorerDatabase');
+                    const user = localStorage.getItem('dbExplorerUser');
+                    const port = localStorage.getItem('dbExplorerPort');
+                    
+                    // Set form values
+                    if (server) document.getElementById('serverInput').value = server;
+                    if (database) document.getElementById('databaseInput').value = database;
+                    if (user) document.getElementById('userInput').value = user;
+                    if (port) document.getElementById('portInput').value = port;
+                }
+            });
+        }
+    });
+    
+    // Main connection function
+    async function connectToDatabase() {
+        const connectButton = document.getElementById('connectButton');
+        connectButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connecting...';
+        connectButton.disabled = true;
+        
+        // Gather form data
+        const server = document.getElementById('serverInput').value.trim();
+        const database = document.getElementById('databaseInput').value.trim();
+        const user = document.getElementById('userInput').value.trim();
+        const password = document.getElementById('passwordInput').value;
+        const port = document.getElementById('portInput').value.trim() || '0';
+        const dbType = document.querySelector('input[name="dbType"]:checked').value;
+        
+        try {
+            // Special handling for SQLite
+            if (dbType === 'sqlite') {
+                if (!database) {
+                    throw new Error('Please enter the SQLite database file path');
+                }
+            } else {
+                if (!server || !database || !user) {
+                    throw new Error('Please enter server, database, and user');
+                }
+            }
+            
+            showLoading('tablesLoading');
+            console.log(`Connection attempt: ${dbType} - ${server}:${port} - ${database} - ${user}`);
+            
+            // Connect
+            const data = await fetchAPI('/api/connect', {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    server, database, user, password, 
+                    port: parseInt(port, 10) || 0, 
+                    db_type: dbType 
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            // Store connection info in localStorage
+            window.sessionId = data.session_id;
+            localStorage.setItem('dbExplorerSessionId', data.session_id);
+            localStorage.setItem('dbExplorerDbType', dbType);
+            localStorage.setItem('dbExplorerServer', server);
+            localStorage.setItem('dbExplorerDatabase', database);
+            localStorage.setItem('dbExplorerUser', user);
+            localStorage.setItem('dbExplorerPort', port);
+            
+            // Close modal and update UI
+            const modal = bootstrap.Modal.getInstance(document.getElementById('connectionModal'));
+            if (modal) modal.hide();
+            
+            updateTablesList(data.tables);
+            
+            // Update connection status in navbar - THIS IS THE KEY FIX
+            if (window.updateConnectionStatus) {
+                window.updateConnectionStatus('connected', dbType);
+            }
+            
+            // Update connection UI state
+            if (window.updateConnectionUI) {
+                window.updateConnectionUI();
+            }
+            
+            // Show success notification
+            showToast('success', 'Database Connected', 
+                `Successfully connected to ${database} on ${server} (${dbType.toUpperCase()})`);
+            
+        } catch (error) {
+            console.error('Connection error:', error);
+            showToast('error', 'Connection Failed', error.message);
+            
+            // Reset connect button
+            connectButton.innerHTML = '<i class="fas fa-plug"></i> Connect';
+            connectButton.disabled = false;
+        } finally {
+            hideLoading('tablesLoading');
+        }
+    }
+    
+    window.updateDisconnectButtons = function() {
+        // Find all disconnect buttons
+        document.querySelectorAll('#disconnectButton, .db-disconnect-btn').forEach(btn => {
+            if (window.sessionId) {
+                btn.style.cssText = 'display: block !important';
+            } else {
+                btn.style.cssText = 'display: none !important';
+            }
+        });
+    };
+    
+    window.disconnectFromDatabase = async function() {
+        if (!window.sessionId) return;
+        
+        try {
+            const response = await fetchAPI(`/api/disconnect/${window.sessionId}`, {
+                method: 'POST'
+            });
+            
+            // Clear local state
+            window.sessionId = null;
+            
+            // Clear UI
+            document.getElementById('tablesList').innerHTML = '';
+            document.getElementById('tableData').style.display = 'none';
+            
+            // Update UI state
+            updateConnectionUI();
+            
+            // Show success message with cache info
+            const message = response.cache_entries_cleared > 0 
+                ? `Disconnected successfully. Cleared ${response.cache_entries_cleared} cache entries.`
+                : 'Disconnected successfully.';
+                
+            showToast('success', 'Disconnected', message);
+            
+        } catch (error) {
+            showToast('error', 'Error', `Error disconnecting: ${error.message}`);
+        }
+    };
+</script>

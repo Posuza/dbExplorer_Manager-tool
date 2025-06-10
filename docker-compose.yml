@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: myfastap_mssql_redis_1/app:latest
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    volumes:
+      - ./app:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  redis:
+    image: redis:7.0
+    ports:
+      - "6379:6379"

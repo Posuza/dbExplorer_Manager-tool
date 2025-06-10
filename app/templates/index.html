@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Database Explorer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Tables list -->
+    <div class="col-md-3 pt-3 border-end">
+        {% include "components/tables-list.html" %}
+    </div>
+    
+    <!-- Table data -->
+    <div class="col-md-9 pt-3">
+        <div id="tableData" style="display: none;">
+            {% include "components/table-view.html" %}
+        </div>
+    </div>
+</div>
+<!-- Include Cache Monitor Component -->
+{% include 'components/cache-monitor.html' %}
+{% endblock %}
+
+{% block modals %}
+{% include "components/connection-modal.html" %}
+{% include "components/column-filter-modal.html" %}
+{% endblock %}
+
+{% block component_js %}
+<script>
+    // Initialize the application
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if we have a stored session
+        const storedSessionId = localStorage.getItem('dbExplorerSessionId');
+        if (storedSessionId) {
+            window.sessionId = storedSessionId;
+            reconnectToDatabase();
+        } else {
+            updateConnectionStatus('disconnected');
+        }
+    });
+</script>
+{% endblock %}

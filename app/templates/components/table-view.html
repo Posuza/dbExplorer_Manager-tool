@@ -1,0 +1,1184 @@
+<style>
+    /* Table styles */
+    #tableData {
+        display: none;
+    }
+
+    .table-container {
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    /* Fix table header layout */
+    .table th {
+        white-space: nowrap;
+        vertical-align: middle;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        font-size: 0.875rem;
+        padding: 12px 8px;
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    /* Prevent column header wrapping */
+    .table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 10;
+        box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Make table more compact */
+    .table-sm th,
+    .table-sm td {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .data-table th, .data-table td {
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        text-align: left;
+    }
+
+    .data-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+    .data-table tr:hover {
+        background-color: #e9ecef;
+    }
+
+    .editable-cell {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .editable-cell:hover {
+        background-color: #e9ecef;
+    }
+
+    /* Action buttons styling */
+    .btn-group-sm > .btn, .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        border-radius: 0.25rem;
+    }
+
+    /* Responsive table improvements */
+    .table-responsive {
+        border-radius: 0.375rem;
+    }
+
+    /* Fix checkbox alignment */
+    .form-check-input {
+        margin-top: 0;
+    }
+
+    /* Loading state for delete buttons */
+    .delete-btn[data-loading="true"] {
+        pointer-events: none;
+        opacity: 0.6;
+    }
+
+    .delete-btn[data-loading="true"] i {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Better button spacing in actions column */
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+    }
+
+    /* Action column styling */
+    td .btn-group {
+        white-space: nowrap;
+    }
+</style>
+
+<div class="card shadow-sm h-100 d-flex flex-column">
+    <div class="card-header py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 d-flex align-items-center fw-bold">
+                <span id="tableTitle">Table Name</span>
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fs-6">
+                    <i class="fas fa-list me-1"></i>
+                    <span id="recordCount">0</span> records
+                </span>
+                
+                <!-- CRUD Action Buttons -->
+                <div class="btn-group" role="group">
+                    <button id="addRecordButton" class="btn btn-success btn-sm" title="Add New Record">
+                        <i class="fas fa-plus"></i> 
+                    </button>
+                    <button id="deleteRecordButton" class="btn btn-danger btn-sm" title="Delete Selected Records" disabled>
+                        <i class="fas fa-trash"></i> 
+                    </button>
+                </div>
+                
+                <button id="clearCacheButton" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-broom"></i> Clear Cache
+                </button>
+                
+                <span id="tableLoading" class="spinner-border spinner-border-sm loading-spinner align-self-center"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body p-0 flex-grow-1 d-flex flex-column">
+        <div class="table-responsive flex-grow-1" style="max-height: calc(100vh - 250px); overflow-x: auto;">
+            <table class="table table-hover mb-0 table-sm">
+                <thead class="table-light sticky-top">
+                    <tr id="tableHeaderRow">
+                        <!-- Headers will be dynamically generated -->
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Table rows will be dynamically generated -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="p-3 border-top mt-auto">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="pageSizeSelect" class="form-label mb-0 text-muted small">Show:</label>
+                        <select id="pageSizeSelect" class="form-select form-select-sm" style="width: auto;">
+                            <option value="25">25</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                            <option value="200">200</option>
+                        </select>
+                        <span class="text-muted small">entries</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <nav aria-label="Table pagination">
+                        <ul class="pagination justify-content-end mb-0" id="pagination"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Record Modal -->
+<div class="modal fade" id="recordModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="recordModalTitle">Add New Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="recordForm">
+                    <div id="recordFields">
+                        <!-- Form fields will be dynamically generated here -->
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveRecordButton">
+                    <i class="fas fa-save me-1"></i> Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global table variables
+    let currentTable = null;
+    let currentPage = 1;
+    let pageSize = 50;
+    let totalPages = 1;
+    let selectedColumns = [];
+    let allColumns = [];
+
+    // CRUD Operations
+    let selectedRecords = new Set();
+    let isEditMode = false;
+    let editingRecordId = null;
+
+    // Table operations
+    window.selectTable = async function(tableName) {
+        try {
+            window.currentTable = tableName;
+            document.getElementById('tableData').style.display = 'block';
+            
+            // Update table title
+            const tableTitle = document.getElementById('tableTitle');
+            if (tableTitle) {
+                tableTitle.innerHTML = `<i class="fas fa-table text-primary me-2"></i>${tableName}`;
+            }
+            
+            // Load table columns first
+            await loadTableColumns(tableName);
+            
+            // Load table data
+            await loadTableData(tableName, 1);
+            
+        } catch (error) {
+            showToast('error', 'Error', error.message);
+        }
+    };
+
+    window.loadTableCount = async function(tableName) {
+        try {
+            showLoading('tableLoading');
+            const data = await fetchAPI(`/api/tables/${tableName}/count`);
+            
+            const recordCount = document.getElementById('recordCount');
+            if (recordCount) {
+                recordCount.textContent = data.count.toLocaleString();
+            }
+            
+            updatePagination();
+        } catch (error) {
+            showToast('error', 'Error', error.message);
+        } finally {
+            hideLoading('tableLoading');
+        }
+    };
+
+    window.loadTableColumns = async function(tableName) {
+        try {
+            const data = await fetchAPI(`/api/tables/${tableName}/columns`);
+            window.allColumns = data.columns;
+            window.selectedColumns = data.columns; // Show all columns by default
+            
+            updateColumnsList();
+        } catch (error) {
+            showToast('error', 'Error', error.message);
+        }
+    };
+
+    window.loadTableData = async function(tableName, page) {
+        try {
+            showLoading('tableLoading');
+            
+            // Determine which endpoint to use
+            let url = `/api/tables/${tableName}/records?page=${page}&page_size=${window.pageSize}`;
+            
+            if (window.selectedColumns && window.selectedColumns.length > 0 && window.selectedColumns.length < window.allColumns.length) {
+                // Use selected columns endpoint
+                const columnsParam = window.selectedColumns.map(col => `columns=${encodeURIComponent(col)}`).join('&');
+                url = `/api/tables/${tableName}/records/selected?page=${page}&page_size=${window.pageSize}&${columnsParam}`;
+            }
+            
+            const data = await fetchAPI(url);
+            
+            if (!data.records || data.records.length === 0) {
+                const tableBody = document.getElementById('tableBody');
+                if (tableBody) {
+                    tableBody.innerHTML = '<tr><td colspan="100%" class="text-center py-5">No records found</td></tr>';
+                }
+                return;
+            }
+            
+            // Update table headers
+            updateTableHeaders(Object.keys(data.records[0] || {}));
+            
+            // Update table rows
+            updateTableRows(data.records);
+            
+            // Update pagination
+            window.currentPage = page;
+            window.totalPages = data.total_pages;
+            updatePagination();
+            
+            // Update record count
+            const recordCount = document.getElementById('recordCount');
+            if (recordCount) {
+                recordCount.textContent = data.total_count.toLocaleString();
+            }
+            
+        } catch (error) {
+            showToast('error', 'Error', error.message);
+        } finally {
+            hideLoading('tableLoading');
+        }
+    };
+
+    // Missing function: updatePagination
+    function updatePagination() {
+        const paginationContainer = document.getElementById('pagination');
+        if (!paginationContainer) return;
+        
+        if (window.totalPages <= 1) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+        
+        let paginationHtml = '';
+        
+        // Previous button
+        if (window.currentPage > 1) {
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" onclick="loadTableData('${window.currentTable}', ${window.currentPage - 1})">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+            `;
+        } else {
+            paginationHtml += `
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                </li>
+            `;
+        }
+        
+        // Page numbers
+        const startPage = Math.max(1, window.currentPage - 2);
+        const endPage = Math.min(window.totalPages, window.currentPage + 2);
+        
+        if (startPage > 1) {
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" onclick="loadTableData('${window.currentTable}', 1)">1</a>
+                </li>
+            `;
+            if (startPage > 2) {
+                paginationHtml += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            if (i === window.currentPage) {
+                paginationHtml += `
+                    <li class="page-item active">
+                        <span class="page-link">${i}</span>
+                    </li>
+                `;
+            } else {
+                paginationHtml += `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadTableData('${window.currentTable}', ${i})">${i}</a>
+                    </li>
+                `;
+            }
+        }
+        
+        if (endPage < window.totalPages) {
+            if (endPage < window.totalPages - 1) {
+                paginationHtml += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" onclick="loadTableData('${window.currentTable}', ${window.totalPages})">${window.totalPages}</a>
+                </li>
+            `;
+        }
+        
+        // Next button
+        if (window.currentPage < window.totalPages) {
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" onclick="loadTableData('${window.currentTable}', ${window.currentPage + 1})">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+            `;
+        } else {
+            paginationHtml += `
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                </li>
+            `;
+        }
+        
+        paginationContainer.innerHTML = paginationHtml;
+    }
+
+    // Missing function: updateColumnsList
+    function updateColumnsList() {
+        const columnsList = document.getElementById('columnsList');
+        if (!columnsList) return;
+        
+        if (!window.allColumns || window.allColumns.length === 0) {
+            columnsList.innerHTML = '<div class="col-12 text-muted">No columns available</div>';
+            return;
+        }
+        
+        const columnsHtml = window.allColumns.map(column => `
+            <div class="col-md-6 col-lg-4">
+                <div class="form-check">
+                    <input class="form-check-input column-checkbox" type="checkbox" 
+                           value="${column}" id="col_${column}" 
+                           ${window.selectedColumns.includes(column) ? 'checked' : ''}>
+                    <label class="form-check-label" for="col_${column}">
+                        ${column}
+                    </label>
+                </div>
+            </div>
+        `).join('');
+        
+        columnsList.innerHTML = columnsHtml;
+    }
+
+    function updateTableHeaders(headers) {
+        const headerRow = document.getElementById('tableHeaderRow');
+        
+        // Build complete header row WITHOUT the # column
+        const headerHTML = `
+            <th width="40" class="text-center">
+                <input type="checkbox" id="selectAllCheckbox" class="form-check-input">
+            </th>
+            <th width="120" class="text-center">Actions</th>
+            ${headers.map(header => `<th class="text-nowrap">${header}</th>`).join('')}
+        `;
+        
+        headerRow.innerHTML = headerHTML;
+        
+        // Re-attach select all event listener
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('.record-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = this.checked;
+                    if (this.checked) {
+                        selectedRecords.add(cb.value);
+                    } else {
+                        selectedRecords.delete(cb.value);
+                    }
+                });
+                updateCrudButtons();
+                updateSelectAllState();
+            });
+        }
+    }
+
+    // Update table rows with CRUD functionality (remove # column)
+    function updateTableRows(records) {
+        const tableBody = document.getElementById('tableBody');
+        tableBody.innerHTML = '';
+        
+        if (records.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="100%" class="text-center py-5">No records found</td></tr>`;
+            return;
+        }
+        
+        records.forEach((record, index) => {
+            const row = document.createElement('tr');
+            const recordId = Object.values(record)[0]; // Assume first column is ID
+            
+            // Checkbox column
+            const checkboxCell = document.createElement('td');
+            checkboxCell.innerHTML = `<input type="checkbox" class="form-check-input record-checkbox" value="${recordId}">`;
+            row.appendChild(checkboxCell);
+            
+            // Actions column (no # column anymore)
+            const actionsCell = document.createElement('td');
+            actionsCell.innerHTML = `
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-sm delete-btn" data-id="${recordId}" title="Delete">
+                        <i class="fas fa-trash text-danger"></i>
+                    </button>
+                </div>
+            `;
+            row.appendChild(actionsCell);
+            
+            // Data columns
+            Object.values(record).forEach((value, colIndex) => {
+                const cell = document.createElement('td');
+                cell.textContent = value !== null ? value : '';
+                cell.className = 'editable-cell';
+                cell.dataset.column = Object.keys(record)[colIndex];
+                cell.dataset.recordId = recordId;
+                row.appendChild(cell);
+            });
+            
+            tableBody.appendChild(row);
+        });
+        
+        // Add event listeners
+        setupCrudEventListeners();
+    }
+
+    function setupCrudEventListeners() {
+        // Individual record checkboxes
+        document.querySelectorAll('.record-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    selectedRecords.add(this.value);
+                } else {
+                    selectedRecords.delete(this.value);
+                }
+                updateCrudButtons();
+                updateSelectAllState();
+            });
+        });
+        
+        // Edit buttons
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                editRecord(this.dataset.id);
+            });
+        });
+        
+        // Delete buttons
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                deleteRecord([this.dataset.id]);
+            });
+        });
+        
+        // Editable cells (double-click to edit)
+        document.querySelectorAll('.editable-cell').forEach(cell => {
+            cell.addEventListener('dblclick', function() {
+                makeEditable(this);
+            });
+        });
+    }
+
+    // Update the updateSelectAllState function (currently missing)
+    function updateSelectAllState() {
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const recordCheckboxes = document.querySelectorAll('.record-checkbox');
+        const checkedBoxes = document.querySelectorAll('.record-checkbox:checked');
+        
+        if (!selectAllCheckbox || recordCheckboxes.length === 0) return;
+        
+        if (checkedBoxes.length === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checkedBoxes.length === recordCheckboxes.length) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    // Consolidated deleteRecord function for bulk deletion
+    window.deleteRecord = async function(recordIds) {
+        if (!recordIds || recordIds.length === 0) {
+            showToast('warning', 'No Selection', 'Please select records to delete');
+            return;
+        }
+        
+        if (recordIds.length === 1) {
+            // Single record deletion
+            try {
+                showLoading('tableLoading');
+                const response = await fetchAPI(`/api/tables/${window.currentTable}/records/${recordIds[0]}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.success) {
+                    showToast('success', 'Success', 'Record deleted successfully');
+                    // Refresh table data
+                    await loadTableData(window.currentTable, window.currentPage);
+                    await loadTableCount(window.currentTable);
+                } else {
+                    showToast('error', 'Delete Failed', response.message || 'Failed to delete record');
+                }
+                
+            } catch (error) {
+                showToast('error', 'Error', error.message || 'An error occurred while deleting record');
+            } finally {
+                hideLoading('tableLoading');
+            }
+        } else {
+            // Bulk deletion
+            showBulkDeleteConfirmation(recordIds);
+        }
+    };
+
+    // Show bulk delete confirmation modal
+    function showBulkDeleteConfirmation(recordIds) {
+        const isMultiple = recordIds.length > 1;
+        const title = isMultiple ? 'Confirm Bulk Delete' : 'Confirm Delete';
+        const message = isMultiple 
+            ? `Are you sure you want to delete ${recordIds.length} selected records?`
+            : 'Are you sure you want to delete this record?';
+        
+        // Create confirmation modal HTML
+        const modalHTML = `
+            <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${title}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                ${message}
+                                <br><small class="text-muted mt-2">This action cannot be undone.</small>
+                            </div>
+                            ${isMultiple ? `
+                                <div class="mt-3">
+                                    <strong>Selected Record IDs:</strong>
+                                    <div class="mt-2 p-2 bg-light rounded">
+                                        <code>${recordIds.slice(0, 10).join(', ')}${recordIds.length > 10 ? ` and ${recordIds.length - 10} more...` : ''}</code>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                                <i class="fas fa-trash"></i> Delete ${isMultiple ? `${recordIds.length} Records` : 'Record'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('deleteConfirmModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        modal.show();
+        
+        // Add confirm button event listener
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+            modal.hide();
+            performBulkDelete(recordIds);
+        });
+        
+        // Clean up modal when hidden
+        document.getElementById('deleteConfirmModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    }
+
+    // Perform the actual bulk delete operation
+    async function performBulkDelete(recordIds) {
+        if (!window.currentTable || !recordIds || recordIds.length === 0) {
+            showToast('error', 'Error', 'Invalid delete operation');
+            return;
+        }
+        
+        try {
+            showLoading('tableLoading');
+            
+            let response;
+            
+            if (recordIds.length === 1) {
+                // Single record deletion
+                response = await fetchAPI(`/api/tables/${window.currentTable}/records/${recordIds[0]}`, {
+                    method: 'DELETE'
+                });
+            } else {
+                // Bulk deletion
+                response = await fetchAPI(`/api/tables/${window.currentTable}/records`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        record_ids: recordIds
+                    })
+                });
+            }
+            
+            if (response.success) {
+                const deletedCount = response.deleted_count || recordIds.length;
+                showToast('success', 'Success', `${deletedCount} record(s) deleted successfully`);
+                
+                // Clear selections
+                selectedRecords.clear();
+                updateCrudButtons();
+                updateSelectAllState();
+                
+                // Refresh table data
+                await loadTableData(window.currentTable, window.currentPage);
+                await loadTableCount(window.currentTable);
+                
+            } else {
+                showToast('error', 'Delete Failed', response.message || 'Failed to delete records');
+            }
+            
+        } catch (error) {
+            console.error('Delete error:', error);
+            showToast('error', 'Error', error.message || 'An error occurred while deleting records');
+        } finally {
+            hideLoading('tableLoading');
+        }
+    }
+
+    // Update the updateCrudButtons function to show count in delete button
+    function updateCrudButtons() {
+        const editBtn = document.getElementById('editRecordButton');
+        const deleteBtn = document.getElementById('deleteRecordButton');
+        
+        const selectedCount = selectedRecords.size;
+        
+        if (selectedCount === 1) {
+            if (editBtn) editBtn.disabled = false;
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+            }
+        } else if (selectedCount > 1) {
+            if (editBtn) editBtn.disabled = true;
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = `<i class="fas fa-trash"></i> Delete (${selectedCount})`;
+            }
+        } else {
+            if (editBtn) editBtn.disabled = true;
+            if (deleteBtn) {
+                deleteBtn.disabled = true;
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+            }
+        }
+    }
+
+    // Consolidated clearTableCache function
+    window.clearTableCache = async function() {
+        if (!window.currentTable) {
+            showToast('warning', 'No Table', 'No table selected');
+            return;
+        }
+        
+        try {
+            // Use the cache router endpoint
+            const sessionId = getCookie('session_id');
+            await fetchAPI(`/api/cache/clear/${sessionId}/table/${window.currentTable}`, {
+                method: 'DELETE'
+            });
+            showToast('success', 'Cache Cleared', `Cache cleared for table ${window.currentTable}`);
+            
+            // Reload current table
+            if (window.currentTable) {
+                await loadTableData(window.currentTable, window.currentPage);
+            }
+        } catch (error) {
+            showToast('error', 'Error', `Error clearing cache: ${error.message}`);
+        }
+    };
+
+    // Add new record - load columns first if needed
+    window.addRecord = async function() {
+        if (!window.currentTable) {
+            showToast('error', 'No Table', 'Please select a table first');
+            return;
+        }
+        
+        try {
+            // Get table schema to get column information
+            showToast('info', 'Loading', 'Loading table schema...');
+            const schema = await fetchAPI(`/api/tables/${window.currentTable}/schema`);
+            window.tableSchema = schema;
+            
+            // Set up form for adding
+            isEditMode = false;
+            editingRecordId = null;
+            document.getElementById('recordModalTitle').textContent = `Add New Record to ${window.currentTable}`;
+            
+            // Generate form from schema (gets column names and types)
+            createRecordFormFromSchema(schema);
+            
+            // Show modal
+            new bootstrap.Modal(document.getElementById('recordModal')).show();
+            
+        } catch (error) {
+            showToast('error', 'Error', 'Failed to load table schema: ' + error.message);
+        }
+    };
+
+    // Update createRecordFormFromSchema function
+    function createRecordFormFromSchema(schema) {
+        const fieldsContainer = document.getElementById('recordFields');
+        if (!fieldsContainer) return;
+        
+        const fieldsHtml = schema.columns
+            .filter(col => !col.is_auto_increment) // Skip auto-increment columns
+            .map(col => {
+                const fieldId = `field_${col.name}`;
+                const isRequired = col.required ? 'required' : '';
+                const placeholder = getPlaceholderForColumn(col);
+                const maxLength = col.max_length ? `maxlength="${col.max_length}"` : '';
+                
+                // Generate appropriate input element
+                let inputElement = '';
+                const type = col.type.toLowerCase();
+                
+                if (type.includes('text') || type.includes('longtext') || type.includes('mediumtext')) {
+                    // Use textarea for text fields
+                    inputElement = `<textarea 
+                        class="form-control" 
+                        id="${fieldId}" 
+                        name="${col.name}" 
+                        placeholder="${placeholder}"
+                        rows="3"
+                        ${isRequired}
+                        ${maxLength}>${col.default || ''}</textarea>`;
+                } else if (type.includes('boolean') || type === 'tinyint(1)') {
+                    // Use select for boolean
+                    inputElement = `<select class="form-select" id="${fieldId}" name="${col.name}" ${isRequired}>
+                        <option value="">Select...</option>
+                        <option value="1" ${col.default === '1' ? 'selected' : ''}>True</option>
+                        <option value="0" ${col.default === '0' ? 'selected' : ''}>False</option>
+                    </select>`;
+                } else {
+                    // Use input for other types
+                    const inputType = getInputTypeForColumn(col);
+                    const step = (type.includes('decimal') || type.includes('float')) ? 'step="0.01"' : '';
+                    
+                    inputElement = `<input 
+                        type="${inputType}" 
+                        class="form-control" 
+                        id="${fieldId}" 
+                        name="${col.name}" 
+                        placeholder="${placeholder}"
+                        ${isRequired}
+                        ${maxLength}
+                        ${step}
+                        ${col.default && !type.includes('datetime') ? `value="${col.default}"` : ''}
+                    >`;
+                }
+                
+                return `
+                    <div class="mb-3">
+                        <label for="${fieldId}" class="form-label">
+                            <i class="fas fa-columns me-1"></i>
+                            ${col.name}
+                            ${col.required ? '<span class="text-danger">*</span>' : ''}
+                            <small class="text-muted">(${col.full_type})</small>
+                        </label>
+                        ${inputElement}
+                        ${col.nullable ? '<small class="form-text text-muted">Optional field</small>' : ''}
+                    </div>
+                `;
+            }).join('');
+        
+        fieldsContainer.innerHTML = fieldsHtml;
+    }
+
+    // Helper function to get appropriate input type
+    function getInputTypeForColumn(col) {
+        const type = col.type.toLowerCase();
+        
+        if (type.includes('int') || type.includes('decimal') || type.includes('float') || type.includes('double')) {
+            return 'number';
+        } else if (type === 'date') {
+            return 'date';
+        } else if (type.includes('datetime') || type.includes('timestamp')) {
+            return 'datetime-local';
+        } else if (type.includes('time') && !type.includes('datetime')) {
+            return 'time';
+        } else if (type.includes('email')) {
+            return 'email';
+        } else if (type.includes('url')) {
+            return 'url';
+        } else {
+            return 'text'; // This handles TEXT, LONGTEXT, VARCHAR, etc.
+        }
+    }
+
+    // Helper function to get placeholder text
+    function getPlaceholderForColumn(col) {
+        if (col.default && col.default !== 'NULL') {
+            return `Default: ${col.default}`;
+        }
+        
+        const type = col.type.toLowerCase();
+        if (type.includes('varchar') && col.max_length) {
+            return `Enter ${col.name} (max ${col.max_length} chars)`;
+        } else if (type.includes('int')) {
+            return `Enter ${col.name} (number)`;
+        } else if (type.includes('date')) {
+            return 'YYYY-MM-DD';
+        } else if (type.includes('datetime')) {
+            return 'YYYY-MM-DD HH:MM:SS';
+        } else {
+            return `Enter ${col.name}`;
+        }
+    }
+
+    // Update the createRecordForm function for backward compatibility
+    function createRecordForm() {
+        if (window.tableSchema) {
+            createRecordFormFromSchema(window.tableSchema);
+        } else {
+            // Fallback to old method if schema not available
+            const fieldsContainer = document.getElementById('recordFields');
+            if (!fieldsContainer || !window.allColumns) return;
+            
+            const fieldsHtml = window.allColumns.map(column => `
+                <div class="mb-3">
+                    <label for="field_${column}" class="form-label">
+                        <i class="fas fa-columns me-1"></i>${column}
+                    </label>
+                    <input type="text" class="form-control" id="field_${column}" name="${column}" 
+                           placeholder="Enter value for ${column}">
+                </div>
+            `).join('');
+            
+            fieldsContainer.innerHTML = fieldsHtml;
+        }
+    }
+
+    // Load record for editing
+    async function loadRecordForEdit(recordId) {
+        try {
+            const record = await fetchAPI(`/api/tables/${window.currentTable}/records/${recordId}`);
+            createRecordForm();
+            
+            // Populate form with existing values
+            Object.entries(record).forEach(([column, value]) => {
+                const input = document.getElementById(`field_${column}`);
+                if (input) {
+                    input.value = value || '';
+                }
+            });
+        } catch (error) {
+            showToast('error', 'Error', 'Failed to load record for editing');
+        }
+    }
+
+    // Consolidated saveRecord function
+    window.saveRecord = async function() {
+        const form = document.getElementById('recordForm');
+        const formData = new FormData(form);
+        const data = {};
+        
+        // Enhanced data collection with better validation
+        for (const [key, value] of formData.entries()) {
+            if (window.tableSchema) {
+                const column = window.tableSchema.columns.find(col => col.name === key);
+                if (column) {
+                    const trimmedValue = value.toString().trim();
+                    
+                    // Skip auto-increment columns completely
+                    if (column.is_auto_increment) {
+                        continue;
+                    }
+                    
+                    if (trimmedValue === '') {
+                        if (column.nullable) {
+                            // Only include NULL for nullable columns
+                            data[key] = null;
+                        } else if (column.default && column.default !== 'NULL') {
+                            // Skip fields with defaults - let database handle it
+                            continue;
+                        } else if (column.required) {
+                            // This will be caught by validation below
+                            data[key] = '';
+                        }
+                    } else {
+                        // Convert based on column type
+                        const type = column.type.toLowerCase();
+                        if (type.includes('int') || type.includes('bigint') || type.includes('smallint')) {
+                            const intValue = parseInt(trimmedValue);
+                            data[key] = isNaN(intValue) ? null : intValue;
+                        } else if (type.includes('decimal') || type.includes('float') || type.includes('double')) {
+                            const floatValue = parseFloat(trimmedValue);
+                            data[key] = isNaN(floatValue) ? null : floatValue;
+                        } else if (type.includes('boolean') || type === 'tinyint(1)') {
+                            data[key] = trimmedValue === '1' ? 1 : 0;
+                        } else {
+                            data[key] = trimmedValue;
+                        }
+                    }
+                }
+            } else {
+                // Fallback if no schema
+                const trimmedValue = value.toString().trim();
+                if (trimmedValue !== '') {
+                    data[key] = trimmedValue;
+                }
+            }
+        }
+        console.log('Sending data:', data); // Debug log
+        
+        try {
+            showLoading('tableLoading');
+            
+            const response = await fetchAPI(`/api/tables/${window.currentTable}/records`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data })
+            });
+            
+            if (response.success) {
+                showToast('success', 'Success', response.message);
+                
+                // Close modal and reset form
+                const modal = bootstrap.Modal.getInstance(document.getElementById('recordModal'));
+                modal.hide();
+                form.reset();
+                
+                // Refresh table data
+                await loadTableData(window.currentTable, window.currentPage);
+                await loadTableCount(window.currentTable);
+            } else {
+                showToast('error', 'Error', response.message);
+            }
+            
+        } catch (error) {
+            console.error('Save error:', error);
+            showToast('error', 'Error', error.message);
+        } finally {
+            hideLoading('tableLoading');
+        }
+    };
+
+    // Quick inline editing with value change detection
+    function makeEditable(cell) {
+        const currentValue = cell.textContent;
+        const originalValue = currentValue; // Store original value
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentValue;
+        input.className = 'form-control form-control-sm';
+        
+        // Store original value in cell dataset for comparison
+        cell.dataset.originalValue = originalValue;
+        
+        input.addEventListener('blur', function() {
+            updateCellValue(cell, this.value, originalValue);
+        });
+        
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                updateCellValue(cell, this.value, originalValue);
+            }
+        });
+        
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                // Cancel editing and restore original value
+                cell.textContent = originalValue;
+                cell.classList.remove('editing');
+            }
+        });
+        
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        cell.classList.add('editing'); // Add visual indicator
+        input.focus();
+        input.select();
+    }
+
+    function updateCellValue(cell, newValue, originalValue) {
+        const recordId = cell.dataset.recordId;
+        const column = cell.dataset.column;
+        
+        // Remove editing class
+        cell.classList.remove('editing');
+        
+        // Check if value actually changed
+        if (newValue === originalValue) {
+            // No change - just restore the original value and return
+            cell.textContent = originalValue;
+            console.log(`No change detected for ${column}. Skipping API call.`);
+            return;
+        }
+        
+        // Check for empty/null values
+        const trimmedNewValue = newValue?.toString().trim() || '';
+        const trimmedOriginalValue = originalValue?.toString().trim() || '';
+        
+        if (trimmedNewValue === trimmedOriginalValue) {
+            // Only whitespace changes - restore original and return
+            cell.textContent = originalValue;
+            console.log(`Only whitespace changes detected for ${column}. Skipping API call.`);
+            return;
+        }
+        
+        // Value actually changed - make API call
+        console.log(`Value changed for ${column}: "${originalValue}" -> "${newValue}". Making API call.`);
+        
+        // Show loading state
+        cell.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+        
+        fetchAPI(`/api/tables/${window.currentTable}/records/${recordId}`, {
+            method: 'POST',
+            body: JSON.stringify({ column, value: newValue })
+        })
+        .then(response => {
+            cell.textContent = newValue; // Update with new value
+            showToast('success', 'Updated', `${column} updated successfully`);
+        })
+        .catch(error => {
+            cell.textContent = originalValue; // Revert to original on error
+            showToast('error', 'Error', error.message || 'Failed to update field');
+        });
+    }
+
+    // Helper function to normalize values for comparison
+    function normalizeValue(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        
+        // Convert to string and trim whitespace
+        const stringValue = value.toString().trim();
+        
+        // Handle common representations of null/empty
+        if (stringValue === 'null' || stringValue === 'NULL' || stringValue === '') {
+            return '';
+        }
+        
+        return stringValue;
+    }
+
+    // Event listeners for CRUD buttons
+    document.addEventListener('DOMContentLoaded', function() {
+        // Page size select
+        const pageSizeSelect = document.getElementById('pageSizeSelect');
+        if (pageSizeSelect) {
+            pageSizeSelect.addEventListener('change', function() {
+                window.pageSize = parseInt(this.value);
+                if (window.currentTable) {
+                    loadTableData(window.currentTable, 1);
+                }
+            });
+        }
+        
+        // All CRUD buttons
+        const buttonEvents = [
+            { id: 'clearCacheButton', handler: clearTableCache },
+            { id: 'addRecordButton', handler: addRecord },
+            { id: 'deleteRecordButton', handler: () => {
+                if (selectedRecords.size > 0) {
+                    deleteRecord(Array.from(selectedRecords));
+                }
+            }},
+            { id: 'saveRecordButton', handler: saveRecord }
+        ];
+        
+        buttonEvents.forEach(({ id, handler }) => {
+            const button = document.getElementById(id);
+            if (button) {
+                button.addEventListener('click', handler);
+            }
+        });
+    });
+</script>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Explorer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Connection status icons */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 15px;
+            padding: 4px 10px;
+            border-radius: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .connection-status.disconnected {
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+
+        .connection-status.info-exists {
+            background-color: rgba(255, 193, 7, 0.1);
+        }
+
+        .connection-status.connected {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+
+        /* Theme toggle button styling */
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border-width: 2px;
+        }
+        
+        /* Light theme styles */
+        [data-bs-theme="light"] {
+            --body-bg: #f8f9fa;
+            --body-color: #212529;
+            --navbar-bg: #343a40;
+            --navbar-color: #ffffff;
+            --theme-toggle-bg: #343a40;
+            --theme-toggle-color: #ffffff;
+            --theme-toggle-border: #343a40;
+        }
+        
+        [data-bs-theme="light"] .navbar {
+            background-color: var(--navbar-bg) !important;
+            color: var(--navbar-color) !important;
+        }
+        
+        [data-bs-theme="light"] .navbar-brand,
+        [data-bs-theme="light"] .nav-link {
+            color: var(--navbar-color) !important;
+        }
+        
+        [data-bs-theme="light"] .theme-toggle {
+            background-color: var(--theme-toggle-bg);
+            color: var(--theme-toggle-color);
+            border-color: var(--theme-toggle-border);
+        }
+        
+        [data-bs-theme="light"] .theme-toggle:hover {
+            background-color: rgba(52, 58, 64, 0.8);
+        }
+        
+        /* Dark theme styles */
+        [data-bs-theme="dark"] {
+            --body-bg: #212529;
+            --body-color: #f8f9fa;
+            --navbar-bg: #f8f9fa;
+            --navbar-color: #212529;
+            --theme-toggle-bg: #f8f9fa;
+            --theme-toggle-color: #212529;
+            --theme-toggle-border: #f8f9fa;
+        }
+        
+        [data-bs-theme="dark"] .navbar {
+            background-color: var(--navbar-bg) !important;
+            color: var(--navbar-color) !important;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        [data-bs-theme="dark"] .navbar-brand,
+        [data-bs-theme="dark"] .nav-link {
+            color: var(--navbar-color) !important;
+        }
+        
+        [data-bs-theme="dark"] .theme-toggle {
+            background-color: var(--theme-toggle-bg);
+            color: var(--theme-toggle-color);
+            border-color: var(--theme-toggle-border);
+        }
+        
+        [data-bs-theme="dark"] .theme-toggle:hover {
+            background-color: rgba(248, 249, 250, 0.8);
+        }
+        
+        [data-bs-theme="dark"] .dropdown-menu {
+            background-color: #343a40;
+            border-color: #495057;
+        }
+        
+        [data-bs-theme="dark"] .dropdown-item {
+            color: #f8f9fa;
+        }
+        
+        [data-bs-theme="dark"] .dropdown-item:hover {
+            background-color: #495057;
+        }
+        
+        [data-bs-theme="dark"] .dropdown-header {
+            color: #adb5bd;
+        }
+
+        /* Status dot for connection button */
+        .connection-dot {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            z-index: 1;
+            border: 1px solid white;
+        }
+        
+        .connection-dot.disconnected {
+            background-color: #dc3545; /* Red */
+        }
+        
+        .connection-dot.info-exists {
+            background-color: #ffc107; /* Yellow */
+        }
+        
+        .connection-dot.connected {
+            background-color: #198754; /* Green */
+        }
+        
+        /* Make the connection button relative for absolute positioning of the dot */
+        #connectionButton {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center fw-bold" href="#">
+            <i class="fas fa-database text-primary me-2 fs-4"></i>
+            Database Explorer
+        </a>
+        
+        <div class="ms-auto d-flex align-items-center gap-3">
+            <!-- Theme Toggle Button -->
+            <button class="btn rounded-circle p-0 theme-toggle" onclick="toggleTheme()">
+                <i id="themeIcon" class="fas fa-moon"></i>
+            </button>
+            
+            <!-- Cache Monitor Button -->
+            <button class="btn btn-outline-info btn-sm" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#cacheMonitorModal"
+                    title="Cache Monitor">
+              <i class="fas fa-tachometer-alt"></i> Cache
+            </button>
+            
+            <!-- Connection Button with Status Dot -->
+            <button id="connectionButton" class="btn btn-primary d-flex align-items-center px-3 py-2 rounded-pill" 
+                onclick="openConnectionModal()">
+                <i class="fas fa-plug me-2"></i>
+                <span id="connectionButtonText" class="me-1">Database</span>
+                <span id="connectionDot" class="connection-dot disconnected"></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<script>
+    // Function to open connection modal directly
+    window.openConnectionModal = function() {
+        var connectionModal = new bootstrap.Modal(document.getElementById('connectionModal'));
+        connectionModal.show();
+    };
+    
+    // Simplified updateConnectionStatus function
+    window.updateConnectionStatus = function(status, dbType = null) {
+        console.log(`Updating connection status to: ${status}, dbType: ${dbType}`); // Debug log
+        
+        const connectionDot = document.getElementById('connectionDot');
+        const buttonText = document.getElementById('connectionButtonText');
+        const connectionButton = document.getElementById('connectionButton');
+        
+        if (!connectionDot || !buttonText) {
+            console.log('Connection elements not found'); // Debug log
+            return;
+        }
+        
+        // Always keep button blue with socket icon
+        connectionButton.className = 'btn btn-primary d-flex align-items-center px-3 py-2 rounded-pill';
+        
+        // Reset dot classes
+        connectionDot.className = 'connection-dot';
+        
+        // Update button text to show DB type when connected
+        if (status === 'connected' && dbType) {
+            buttonText.textContent = dbType.toUpperCase();
+            connectionDot.classList.add('connected');
+            console.log(`Updated to connected state with ${dbType}`); // Debug log
+        } else if (status === 'info-exists') {
+            buttonText.textContent = 'Reconnect';
+            connectionDot.classList.add('info-exists');
+        } else {
+            buttonText.textContent = 'Database';
+            connectionDot.classList.add('disconnected');
+        }
+    };
+    
+    // Simplified disconnectFromDatabase function
+    window.disconnectFromDatabase = function() {
+        // Clear session ID
+        window.sessionId = null;
+        localStorage.removeItem('dbExplorerSessionId');
+        localStorage.removeItem('dbExplorerDbType');
+        localStorage.removeItem('dbExplorerDbName');
+        document.cookie = 'session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        
+        // Update UI to disconnected state
+        updateConnectionStatus('disconnected');
+        
+        // Clear tables list and hide table data
+        const tablesList = document.getElementById('tablesList');
+        const tableData = document.getElementById('tableData');
+        if (tablesList) tablesList.innerHTML = '';
+        if (tableData) tableData.style.display = 'none';
+        
+        // Close the modal if it's open
+        const modal = bootstrap.Modal.getInstance(document.getElementById('connectionModal'));
+        if (modal) modal.hide();
+        
+        showToast('info', 'Disconnected', 'Successfully disconnected from database');
+    };
+    
+    // Check connection status on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if session exists in localStorage
+        const storedSessionId = localStorage.getItem('dbExplorerSessionId');
+        const storedDbType = localStorage.getItem('dbExplorerDbType');
+        
+        if (storedSessionId) {
+            // We have a session, check if we can reconnect
+            fetch(`/api/connection-info/${storedSessionId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('No valid connection');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Connection info exists, show yellow status dot
+                    updateConnectionStatus('info-exists', storedDbType);
+                    window.sessionId = storedSessionId; // Set the session ID
+                })
+                .catch(error => {
+                    // No valid connection
+                    localStorage.removeItem('dbExplorerSessionId');
+                    localStorage.removeItem('dbExplorerDbType');
+                    updateConnectionStatus('disconnected');
+                });
+        } else {
+            // No session
+            updateConnectionStatus('disconnected');
+        }
+    });
+</script>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.9.2/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
