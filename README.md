@@ -53,11 +53,11 @@ Here are some screenshots of the application:
 ### 1. Connecting to a Database
 
 1.  Click the "Database" button in the top right corner.
-    ![Connection Button](project_images/connectdb.png)
+    ![Connection Button](project_images/connecteddb.png)
     *Replace with an image of the connection button.*
 
 2.  Select the database type and enter the connection details.
-    ![Connection Modal](project_images/connection-modal.png)
+    ![Connection Modal](project_images/unconnectdb.png)
     *Replace with an image of the connection modal.*
 
 3.  Click "Connect".
@@ -83,7 +83,7 @@ Here are some screenshots of the application:
 ### 4. Monitoring Cache
 
 1.  Click the "Cache" button in the top right corner.
-    ![Cache Button](project_images/cache-button.png)
+    ![Cache Button](project_images/unconnect_caches.png)
     *Replace with an image of the cache button.*
 
 2.  View the cache status and breakdown.
