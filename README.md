@@ -1,4 +1,4 @@
-# DbTest1: Database Explorer & Management Tool
+#  Database Explorer & Management Tool
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
